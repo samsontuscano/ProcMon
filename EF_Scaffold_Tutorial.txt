@@ -1,0 +1,56 @@
+DB Table scripts
+create table ProcessConfiguration
+(
+	PCID INT IDENTITY(1,1) PRIMARY KEY,
+	ProcessName NVARCHAR(100) NOT NULL,
+	NormalRunTimeSec INT,
+	IntimationMechanism NVARCHAR(300),
+	ProcessMonitorIntervalSec INT
+);
+INSERT INTO ProcessConfiguration (ProcessName, NormalRunTimeSec, IntimationMechanism, ProcessMonitorIntervalSec)VALUES ('OUTLOOK', 50, '{"From": "sgokulna@its.jnj.com","To": "stuscano@its.jnj.com"}', 5)
+INSERT INTO ProcessConfiguration (ProcessName, NormalRunTimeSec, IntimationMechanism, ProcessMonitorIntervalSec)VALUES ('HPR.EMEA.BPF', 50, '{"From": "sgokulna@its.jnj.com","To": "stuscano@its.jnj.com"}', 5)
+
+create table ProcessLog
+(
+	PLID INT IDENTITY(1,1) PRIMARY KEY,
+	PCID INT NOT NULL,
+	PID INT NOT NULL,	
+	ProcessName NVARCHAR(100) NOT NULL,
+	ProcessStartTime DateTime,
+	ProcessEndTime DateTime,
+	ProcessDurationMins INT,
+	Exception NVARCHAR(200),
+   	ExceptionMessage NVARCHAR(200),
+	CONSTRAINT FK_ProcessConfiguration_ProcessLog
+        FOREIGN KEY (PCID) REFERENCES ProcessConfiguration(PCID)
+);
+
+create table ProcessStatistics
+(
+	PSID INT IDENTITY(1,1) PRIMARY KEY,
+	PLID INT NOT NULL,    
+	ProcessStatus NVARCHAR(100),
+	ProcessLogTime DateTime,
+	WorkingMemory INT,
+	PeakWorkingMemory INT,    
+	CPUTimeMins INT,
+	ProcessDescription NVARCHAR(200),
+	SessionId INT,
+	CONSTRAINT FK_ProcessLog_ProcessStatistics
+        	FOREIGN KEY (PLID) REFERENCES ProcessLog(PLID)
+);
+
+Select * from ProcessConfiguration
+Select * from ProcessLog
+Select * from ProcesStatistics
+
+
+
+
+EF Core Scaffold commands
+//For Single table
+Scaffold-DbContext "Server=azryflamsw0006;Database=DEV-HPR-DEV;Integrated Security=True;TrustServerCertificate=True" Microsoft.EntityFrameworkCore.SqlServer -Tables ProcessStatistic -OutputDir Models -Force 
+
+//For Multiple tables
+Scaffold-DbContext "Server=azryflamsw0006;Database=DEV-HPR-DEV;Integrated Security=True;TrustServerCertificate=True" Microsoft.EntityFrameworkCore.SqlServer -Tables ProcessStatistics,ProcessConfiguration,ProcessLog -OutputDir Models -Force
+
