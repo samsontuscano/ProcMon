@@ -1,0 +1,25 @@
+﻿using System;
+using System.Collections.Generic;
+
+namespace ProcessMonitorDL.Models;
+
+public partial class ProcessLog
+{
+    public int Plid { get; set; }
+
+    public int Pcid { get; set; }
+
+    public int Pid { get; set; }
+
+    public string ProcessName { get; set; } = null!;
+
+    public DateTime? ProcessStartTime { get; set; }
+
+    public DateTime? ProcessEndTime { get; set; }
+
+    public int? ProcessDurationMins { get; set; }
+
+    public string? Exception { get; set; }
+
+    public string? ExceptionMessage { get; set; }
+}

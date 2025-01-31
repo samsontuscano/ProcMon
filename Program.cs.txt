@@ -1,0 +1,64 @@
+﻿// See https://aka.ms/new-console-template for more information
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using ProcessMonitorCL;
+using ProcessMonitorDL;
+using ProcessMonitorDL.Models;
+using System.Configuration;
+class Program
+{
+    static void Main(string[] args)
+    {
+        var host = Host.CreateDefaultBuilder(args)
+        .ConfigureServices((context, services) =>
+        {
+            // Retrieve the connection string from configuration
+            var connectionString = ConfigurationManager.ConnectionStrings["DevDatabase"].ConnectionString;
+           
+            // Add DbContext to the service collection
+            services.AddDbContext<DevHprDevContext>(options =>
+                options.UseSqlServer(connectionString));
+
+            // Register additional services if needed
+            services.AddTransient<DatabaseHelper>(); // Example service
+        })
+        .Build();
+
+        // Resolve the service and run it
+        using var scope = host.Services.CreateScope();
+        var serviceProvider = scope.ServiceProvider;
+        var databaseHelperService = serviceProvider.GetRequiredService<DatabaseHelper>();
+
+        if (args.Length == 0)
+        {
+            Console.WriteLine("No command-line arguments provided.");
+            return;
+        }
+        else
+        {
+            Console.WriteLine("Command-line arguments:");
+            for (int i = 0; i < args.Length; i++)
+            {
+                Console.WriteLine($"Argument {i + 1}: {args[i]}");
+            }
+
+
+            string[] strArr = args[0].ToString().Split("||");
+            int processId = Convert.ToInt32(strArr[0]); 
+            string processName = Convert.ToString(strArr[1]);
+
+
+            InvokeProcessMonitor(processId, processName, databaseHelperService);
+        }
+    }
+
+    static void InvokeProcessMonitor(int processId, string processName, DatabaseHelper databaseHelper)
+    {
+        ProcessMonitor checkRunningProcesses = new ProcessMonitor();
+        //checkRunningProcesses.SetProcessName(appName, databaseHelperService); //"HPR.EMEA.BPF"
+        checkRunningProcesses.SetProcessId(processId, processName, databaseHelper); //"HPR.EMEA.BPF"
+        checkRunningProcesses.StartProcessMonitor();
+    }
+}

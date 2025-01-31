@@ -1,0 +1,17 @@
+﻿using System;
+using System.Collections.Generic;
+
+namespace ProcessMonitorDL.Models;
+
+public partial class ProcessConfiguration
+{
+    public int Pcid { get; set; }
+
+    public string ProcessName { get; set; } = null!;
+
+    public int? NormalRunTimeSec { get; set; }
+
+    public string? IntimationMechanism { get; set; }
+
+    public int? ProcessMonitorIntervalSec { get; set; }
+}

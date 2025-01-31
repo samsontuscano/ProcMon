@@ -1,0 +1,28 @@
+﻿using System;
+using System.Collections.Generic;
+
+namespace ProcessMonitorDL.Models;
+
+public partial class ProcessStatistics
+{
+
+    //Process Primary Key
+    public int Psid { get; set; }
+    //Process Log Key
+    public int Plid { get; set; }
+
+    public string? ProcessStatus { get; set; }
+
+    public DateTime? ProcessLogTime { get; set; }
+
+    public int? WorkingMemory { get; set; }
+
+    public int? PeakWorkingMemory { get; set; }
+
+    public int? CputimeMins { get; set; }
+
+    public string? ProcessDescription { get; set; }
+
+    public int? SessionId { get; set; }
+
+}

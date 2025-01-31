@@ -1,0 +1,13 @@
+{
+    "ConnectionStrings": {
+        "DefaultConnection": "Server=azryflamsw0006;Database=DEV-HPR-DEV;Integrated Security=True;TrustServerCertificate=True",
+        "HPRConnection": "Server=azryflamsw0006;Database=DEV-HPR-DEV;Integrated Security=True;TrustServerCertificate=True"
+    },
+    "Logging": {
+        "LogLevel": {
+            "Default": "Information",
+            "System": "Warning",
+            "Microsoft": "Warning"
+        }
+    }
+}

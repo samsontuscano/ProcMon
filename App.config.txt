@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<configuration>
+	<appSettings>
+		<add key="SMTP_Host" value="smtp.eu.jnj.com" />
+	</appSettings>
+	<connectionStrings>
+		<add name="DevDatabase" connectionString="Server=azryflamsw0006.jnj.com;Initial Catalog=DEV-HPR-DEV;persist security info=True;user id=HPRUser;password=Hpruser$123;MultipleActiveResultSets=True;App=EntityFrameworkCore;TrustServerCertificate=True;" />
+	</connectionStrings>
+</configuration>

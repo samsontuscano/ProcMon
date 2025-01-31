@@ -1,0 +1,74 @@
+﻿using System;
+using System.Collections.Generic;
+using Microsoft.EntityFrameworkCore;
+using System.Configuration;
+namespace ProcessMonitorDL.Models;
+
+public partial class DevHprDevContext : DbContext
+{
+    public DevHprDevContext()
+    {
+    }
+
+    public DevHprDevContext(DbContextOptions<DevHprDevContext> options)
+         : base(options)
+    {
+    }
+
+    public virtual DbSet<ProcessConfiguration> ProcessConfigurations { get; set; }
+
+    public virtual DbSet<ProcessLog> ProcessLogs { get; set; }
+
+    public virtual DbSet<ProcessStatistics> ProcessStatistics { get; set; }
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        optionsBuilder.UseSqlServer(ConfigurationManager.ConnectionStrings["DevDatabase"].ConnectionString);
+    }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ProcessConfiguration>(entity =>
+        {
+            entity.HasKey(e => e.Pcid).HasName("PK__ProcessC__580221FF2432E767");
+
+            entity.ToTable("ProcessConfiguration");
+
+            entity.Property(e => e.Pcid).HasColumnName("PCID");
+            entity.Property(e => e.IntimationMechanism).HasMaxLength(300);
+            entity.Property(e => e.ProcessName).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<ProcessLog>(entity =>
+        {
+            entity.HasKey(e => e.Plid).HasName("PK__ProcessL__5ED8B98BBDEA449A");
+
+            entity.ToTable("ProcessLog");
+
+            entity.Property(e => e.Plid).HasColumnName("PLID");
+            entity.Property(e => e.Exception).HasMaxLength(200);
+            entity.Property(e => e.ExceptionMessage).HasMaxLength(200);
+            entity.Property(e => e.Pcid).HasColumnName("PCID");
+            entity.Property(e => e.Pid).HasColumnName("PID");
+            entity.Property(e => e.ProcessEndTime).HasColumnType("datetime");
+            entity.Property(e => e.ProcessName).HasMaxLength(100);
+            entity.Property(e => e.ProcessStartTime).HasColumnType("datetime");
+        });
+
+        modelBuilder.Entity<ProcessStatistics>(entity =>
+        {
+            entity.HasKey(e => e.Psid).HasName("PK__ProcessS__BC000976228DCAD4");
+
+            entity.Property(e => e.Psid).HasColumnName("PSID");
+            entity.Property(e => e.CputimeMins).HasColumnName("CPUTimeMins");
+            entity.Property(e => e.Plid).HasColumnName("PLID");
+            entity.Property(e => e.ProcessDescription).HasMaxLength(200);
+            entity.Property(e => e.ProcessLogTime).HasColumnType("datetime");
+            entity.Property(e => e.ProcessStatus).HasMaxLength(100);
+        });
+
+        OnModelCreatingPartial(modelBuilder);
+    }
+
+    partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
+}

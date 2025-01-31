@@ -1,0 +1,216 @@
+﻿using System.Diagnostics;
+using System.Net.Mail;
+using System.Net;
+using System.Management;
+using ProcessMonitorDL.Models;
+using ProcessMonitorDL;
+using System.Security.Cryptography;
+using System;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using System.Text.Json;
+
+namespace ProcessMonitorCL
+{
+    public class ProcessMonitor
+    {
+        string _processToMonitorName = string.Empty;
+
+        int _processToMonitorId = 0;
+
+        bool _startProcessMonitor = false;
+
+        ProcessHelper _processHelper = new ProcessHelper();
+
+        DatabaseHelper _databaseHelper;
+
+        ProcessConfiguration _processConfiguration;
+
+        bool _processLogEntryAdded = false;
+
+        bool _stopWatchStarted = false;
+        
+        public ProcessMonitor()
+        {
+
+        }
+
+        void CheckForRunningProcess()
+        {
+            int plid = 0;
+            Stopwatch stopwatch = new Stopwatch();
+            while (_startProcessMonitor)
+            {
+                if (_processToMonitorId > 0)
+                {
+                    Process process = _processHelper.GetProcessesById(_processToMonitorId);
+                    if (process != null)
+                    {
+                        if(!_stopWatchStarted)
+                        {
+                            stopwatch.Start();
+                            _stopWatchStarted = true;
+                        }
+                        Console.WriteLine("Process Monitor running " + DateTime.Now.ToString("dd-MMM-yyyyy hh:mm:ss"));
+                        Console.WriteLine($"PID: {process.Id}");
+                        Console.WriteLine($"Name: {process.ProcessName}");
+                        // Get the status of the process
+                        string status = process.Responding ? "Running" : "Not Responding";
+                        Console.WriteLine($"Status: {status}");
+                        // You can also check if the process has exited or not
+                        if (process.HasExited)
+                        {
+                            Console.WriteLine("The process has exited.");
+                        }
+                        else
+                        {
+                            Console.WriteLine("The process is still running.");
+                        }
+                        Console.WriteLine($"Process StartTime: {process.StartTime}");
+                        Console.WriteLine($"Working Set (memory): {process.WorkingSet64 / 1024} KB");
+                        Console.WriteLine($"Peak Working Set (memory): {process.PeakWorkingSet64 / 1024} KB");
+                        // Get the total CPU time used by the process
+                        TimeSpan cpuTime = process.TotalProcessorTime;
+                        Console.WriteLine($"CPU Time: {cpuTime.Hours} hours, {cpuTime.Minutes} minutes, {cpuTime.Seconds} seconds");
+                        string description = _processHelper.GetProcessDescription(process.Id);
+                        Console.WriteLine("Description: " + description);
+                        Console.WriteLine("SessionId: " + process.SessionId);
+
+                        
+                        //Make Process Log entry only once
+                        if (!_processLogEntryAdded)
+                        {
+                            WriteProcessLogEntry(process);
+                            _processLogEntryAdded = true;
+                        }
+
+                        //Make Process Statistics entry each time after Process Monitor Interval
+                        WriteProcessStatisticsEntry(process);
+
+                        //Check for threshold time and send mail if exceeded.
+                        CheckForThresholdTime(stopwatch);
+                    }
+                    else
+                    {
+                        stopwatch.Stop();
+                        //Process no longer Running
+                        Console.WriteLine($"{_processToMonitorName} process is not running");
+                        //Stop Process Monitor
+                        StopProcessMonitor();
+                        //Clear Process Name
+                        ClearProcessName();
+                    }
+                }
+                Thread.Sleep(Convert.ToInt32(_processConfiguration.ProcessMonitorIntervalSec * 1000));                
+            }
+        }
+
+        void CheckForThresholdTime(Stopwatch stopwatch)
+        {
+            TimeSpan timespan = stopwatch.Elapsed;
+            int totalRunTime = (timespan.Hours * 60) + timespan.Minutes + (timespan.Seconds > 1 ? 1 : 0);
+            //If Threshold time breach, send mail
+            if (totalRunTime > Convert.ToInt32(_processConfiguration.NormalRunTimeSec / 60))
+            {
+                string? JSONstr = Convert.ToString(_processConfiguration.IntimationMechanism);
+                Email email = JsonSerializer.Deserialize<Email>(JSONstr);
+                
+                UtilityHelper utilityHelper = new UtilityHelper();
+                string body = "PLID - " + GetPLId(_processConfiguration.Pcid, _processToMonitorId, _processToMonitorName) +
+                              " PID - " + _processToMonitorId + " Process Name - " + _processToMonitorName;
+                utilityHelper.SendEmail(_processToMonitorName + " - Threshold Time breach", body, email.To, email.From);
+            }
+        }
+
+        void WriteProcessLogEntry(Process process)
+        {
+            ProcessLog processLog = new ProcessLog();
+
+            processLog.Pcid = _processConfiguration.Pcid;
+            processLog.Pid = _processToMonitorId;
+            processLog.ProcessName = process.ProcessName;
+            processLog.ProcessStartTime = process.StartTime;
+            processLog.ProcessEndTime = null;
+            processLog.ProcessDurationMins = 0;
+            processLog.Exception = null;
+            processLog.ExceptionMessage = null;
+
+            _databaseHelper.InsertProcessLogRow(processLog);
+        }
+
+        void WriteProcessStatisticsEntry(Process process)
+        {
+            ProcessStatistics procesStatistics = new ProcessStatistics();
+
+            procesStatistics.Plid = GetPLId(_processConfiguration.Pcid, _processToMonitorId, _processToMonitorName);
+            string status = process.Responding ? "Running" : "Not Responding";
+            procesStatistics.ProcessStatus = status;
+            procesStatistics.ProcessLogTime = DateTime.Now;
+            procesStatistics.WorkingMemory = Convert.ToInt32(process.WorkingSet64 / 1024);
+            procesStatistics.PeakWorkingMemory = Convert.ToInt32(process.PeakWorkingSet64 / 1024);
+            TimeSpan cpuTime = process.TotalProcessorTime;
+            procesStatistics.CputimeMins = (cpuTime.Hours * 60) + cpuTime.Minutes + cpuTime.Seconds > 1 ? 1 : 0;
+            string description = _processHelper.GetProcessDescription(process.Id);
+            procesStatistics.ProcessDescription = description;
+            procesStatistics.SessionId = process.SessionId;
+
+            _databaseHelper.InsertProcessStatisticsRow(procesStatistics);
+        }
+
+        int GetPLId(int pcid, int pid, string processName)
+        {
+            //Get Max PL Id from Process Logs table
+            return _databaseHelper.GetPLId(pcid, pid, processName);
+        }
+
+
+        public void SetProcessName(string processName, DatabaseHelper databaseHelper)
+        {
+            //Set current process name
+            _processToMonitorName = processName;
+            //Set Databasehelper
+            _databaseHelper = databaseHelper;
+            //Get Process Configuration for given process Name
+            _processConfiguration = _databaseHelper.GetProcessConfiguration(processName);
+            //Set _processLogEntryAdded to false
+            _processLogEntryAdded = false;
+        }
+
+        public void SetProcessId(int processId, string processName, DatabaseHelper databaseHelper)
+        {
+            //Set process  to monitor id
+            _processToMonitorId = processId;
+            _processToMonitorName = processName;
+            //Set Databasehelper
+            _databaseHelper = databaseHelper;
+
+            Process process = _processHelper.GetProcessesById(_processToMonitorId);
+            //Get Process Configuration for given process Name
+            _processConfiguration = _databaseHelper.GetProcessConfiguration(_processToMonitorName);
+            //Set _processLogEntryAdded to false
+            _processLogEntryAdded = false;
+        }
+
+        public void StartProcessMonitor()
+        {
+            _startProcessMonitor = true;            
+            CheckForRunningProcess();
+        }
+
+        public void StopProcessMonitor()
+        {
+            _startProcessMonitor = false;
+        }
+
+        public void ClearProcessName()
+        {
+            _processToMonitorName = string.Empty;
+        }
+        
+    }
+
+    public class Email
+    {
+        public string From { get; set; }
+        public string To { get; set; }
+    }
+}
